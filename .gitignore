@@ -39,9 +39,6 @@ node_modules/
 
 */CACHE/*
 
-# pip
-src/
-
 # OS generated files #
 ######################
 .DS_Store
