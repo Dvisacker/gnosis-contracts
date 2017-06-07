@@ -8,3 +8,7 @@ import * as marketMaker from './market-maker';
 import * as hunchgame from './hunch-game-api';
 
 export default {config, transactionLib, contracts, helpers, api, state, marketMaker, hunchgame};
+
+import contract from 'truffle-contract';
+import StandardMarketFactory_artifacts from '../contracts/Markets/StandardMarketFactory.sol';
+const StandardMarketFactory = contract(StandardMarketFactory_artifacts);

@@ -23,8 +23,12 @@
     "prediction",
     "market"
   ],
-  "author": "",
-  "license": "ISC",
+  "author": "Gnosis (https://gnosis.pm/)",
+  "contributors": [
+    "Denis Granha <denis.granha@consensys.net>",
+    "Alan Lu <alan.lu@gnosis.pm>"
+  ],
+  "license": "MIT",
   "bugs": {
     "url": "https://github.com/gnosis/gnosis-contracts/issues"
   },
@@ -34,6 +38,7 @@
     "babel-loader": "^7.0.0",
     "babel-plugin-transform-runtime": "^6.23.0",
     "truffle": "^3.2.5",
+    "truffle-solidity-loader": "github:sogoiii/truffle-solidity-loader#update_truffle_3",
     "webpack": "^2.6.1"
   },
   "dependencies": {

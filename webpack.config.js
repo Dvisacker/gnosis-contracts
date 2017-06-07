@@ -2,20 +2,26 @@ module.exports = {
   entry: './src/index.js',
   output: {
     filename: './dist/gnosis.js',
-    libraryTarget: 'var',
     library: 'gnosis',
   },
   module: {
-    loaders: [
+    rules: [
       {
         test: /\.js$/,
         exclude: /node_modules/,
-        loader: 'babel-loader',
+        use: [{ loader: 'babel-loader' }],
       },
       {
         test: /\.json$/,
-        loader: 'json-loader',
+        use: [{ loader: 'json-loader' }],
       },
+      {
+        test: /\.sol$/,
+        use: [
+          { loader: 'json-loader' },
+          { loader: 'truffle-solidity-loader?network=development' },
+        ],
+      }
     ],
   },
 };
