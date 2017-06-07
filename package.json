@@ -1,0 +1,45 @@
+{
+  "name": "gnosisjs",
+  "version": "0.2.0",
+  "description": "A javascript library for building applications on top of Gnosis, the Ethereum prediction market platform",
+  "main": "src/main.js",
+  "directories": {
+    "test": "test"
+  },
+  "scripts": {
+    "test": "pytest && truffle test",
+    "build": "truffle build"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/gnosis/gnosis-contracts.git"
+  },
+  "keywords": [
+    "gnosis",
+    "ethereum",
+    "blockchain",
+    "contract",
+    "library",
+    "prediction",
+    "market"
+  ],
+  "author": "",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/gnosis/gnosis-contracts/issues"
+  },
+  "homepage": "https://github.com/gnosis/gnosis-contracts#readme",
+  "devDependencies": {
+    "babel-core": "^6.24.1",
+    "babel-loader": "^7.0.0",
+    "babel-plugin-transform-runtime": "^6.23.0",
+    "truffle": "^3.2.5",
+    "webpack": "^2.6.1"
+  },
+  "dependencies": {
+    "axios": "^0.16.2",
+    "eth-lightwallet": "^2.5.4",
+    "rx": "^4.1.0",
+    "web3-provider-engine": "^12.2.2"
+  }
+}
