@@ -2,21 +2,31 @@ const utils = require('./utils')
 
 const { wait, waitUntilBlock } = require('@digix/tempo')(web3)
 
-const EtherToken = artifacts.require('EtherToken')
+const Event = artifacts.require('Event')
+const Market = artifacts.require('Market')
+const Token = artifacts.require('Token')
 const CentralizedOracle = artifacts.require('CentralizedOracle')
 const CentralizedOracleFactory = artifacts.require('CentralizedOracleFactory')
 const DifficultyOracle = artifacts.require('DifficultyOracle')
 const DifficultyOracleFactory = artifacts.require('DifficultyOracleFactory')
+const FutarchyOracle = artifacts.require('FutarchyOracle')
+const FutarchyOracleFactory = artifacts.require('FutarchyOracleFactory')
 const MajorityOracle = artifacts.require('MajorityOracle')
 const MajorityOracleFactory = artifacts.require('MajorityOracleFactory')
 const UltimateOracle = artifacts.require('UltimateOracle')
 const UltimateOracleFactory = artifacts.require('UltimateOracleFactory')
+const LMSRMarketMaker = artifacts.require('LMSRMarketMaker')
+const StandardMarketFactory = artifacts.require('StandardMarketFactory')
+const EtherToken = artifacts.require('EtherToken')
 
 contract('Oracle', function (accounts) {
     let centralizedOracleFactory
     let difficultyOracleFactory
+    let futarchyOracleFactory
     let majorityOracleFactory
     let ultimateOracleFactory
+    let lmsrMarketMaker
+    let standardMarketFactory
     let etherToken
     let ipfsHash, ipfsBytes
     let spreadMultiplier, challengePeriod, challengeAmount, frontRunnerPeriod
@@ -25,8 +35,11 @@ contract('Oracle', function (accounts) {
         // deployed factory contracts
         centralizedOracleFactory = await CentralizedOracleFactory.deployed()
         difficultyOracleFactory = await DifficultyOracleFactory.deployed()
+        futarchyOracleFactory = await FutarchyOracleFactory.deployed()
         majorityOracleFactory = await MajorityOracleFactory.deployed()
         ultimateOracleFactory = await UltimateOracleFactory.deployed()
+        lmsrMarketMaker = await LMSRMarketMaker.deployed()
+        standardMarketFactory = await StandardMarketFactory.deployed()
         etherToken = await EtherToken.deployed()
 
         // ipfs hashes
@@ -93,7 +106,77 @@ contract('Oracle', function (accounts) {
         assert.equal(await difficultyOracle.isOutcomeSet(), await difficultyOracle.getOutcome().valueOf() != 0)
     })
 
-    // TODO: test futarchy oracle
+    it('should test futarchy oracle', async () => {
+        const creator = 3
+
+        // create centralized oracle
+        const centralizedOracle = utils.getParamFromTxEvent(
+            await centralizedOracleFactory.createCentralizedOracle(ipfsHash, { from: accounts[creator] }),
+            'centralizedOracle', CentralizedOracle
+        )
+
+        // 5%
+        const feeFactor = 50000
+        const lower = -100
+        const upper = 100
+        // in 1h
+        const deadlinePeriod = 60*60
+        const deadline = web3.eth.getBlock('pending').timestamp + deadlinePeriod
+
+        const futarchyOracleTx = await futarchyOracleFactory.createFutarchyOracle(
+            etherToken.address, centralizedOracle.address, 2, lower, upper,
+            standardMarketFactory.address, lmsrMarketMaker.address, feeFactor, deadline,
+            { from: accounts[creator] })
+
+        assert.isBelow(futarchyOracleTx.receipt.gasUsed, 20000000)
+        const futarchy = utils.getParamFromTxEvent(futarchyOracleTx, 'futarchyOracle', FutarchyOracle)
+        const categoricalEvent = Event.at(await futarchy.categoricalEvent())
+
+        // Fund markets
+        const collateralTokenCount = 1e18
+        await etherToken.deposit({ value: collateralTokenCount, from: accounts[creator] })
+        assert.equal(await etherToken.balanceOf(accounts[creator]), collateralTokenCount)
+        await etherToken.approve(futarchy.address, collateralTokenCount, { from: accounts[creator] })
+        await futarchy.fund(collateralTokenCount, { from: accounts[creator] })
+
+        // Buy into market for outcome token 1
+        const market = Market.at(await futarchy.markets(1))
+        const buyer = 4
+        const outcome = 1
+        const tokenCount = 1e15
+        const outcomeTokenCost = await lmsrMarketMaker.calcCost(market.address, outcome, tokenCount)
+        const fee = await market.calcMarketFee(outcomeTokenCost)
+        const cost = outcomeTokenCost.add(fee)
+
+        // Buy all outcomes
+        await etherToken.deposit({ value: cost, from: accounts[buyer] })
+        await etherToken.approve(categoricalEvent.address, cost, { from: accounts[buyer] })
+        await categoricalEvent.buyAllOutcomes(cost, { from: accounts[buyer] })
+
+        const collateralToken = Token.at(await categoricalEvent.outcomeTokens(1))
+        await collateralToken.approve(market.address, cost, { from: accounts[buyer] })
+        assert.equal(utils.getParamFromTxEvent(
+            await market.buy(outcome, tokenCount, cost, { from: accounts[buyer] }),
+            'cost').valueOf(), cost)
+
+        // Set outcome of futarchy oracle
+        await utils.assertRejects(futarchy.setOutcome(), 'setting outcome should not succeed before the deadline!')
+        await wait(deadlinePeriod + 1)
+        await futarchy.setOutcome()
+        assert(await futarchy.isOutcomeSet())
+        assert.equal(await futarchy.getOutcome(), 1)
+        await categoricalEvent.setOutcome()
+
+        // Set winning outcome for scalar events
+        await utils.assertRejects(futarchy.close(), 'cannot close futarchy until outcome is set')
+        await centralizedOracle.setOutcome(-50, { from: accounts[creator] })
+        const scalarEvent = Event.at(await market.eventContract())
+        await scalarEvent.setOutcome()
+
+        // Close winning market and transfer collateral tokens to creator
+        await futarchy.close({ from: accounts[creator] })
+        assert.isAbove(await etherToken.balanceOf(accounts[creator]), collateralTokenCount)
+    })
 
     it('should test majority oracle', async () => {
         // create Oracles
