@@ -1,6 +1,6 @@
 const utils = require('./utils')
 
-const { wait } = require('@digix/tempo')(web3)
+const { wait, waitUntilBlock } = require('@digix/tempo')(web3)
 
 const EtherToken = artifacts.require('EtherToken')
 const CentralizedOracle = artifacts.require('CentralizedOracle')
@@ -77,14 +77,20 @@ contract('Oracle', function (accounts) {
         await utils.assertRejects(difficultyOracle.setOutcome())
         assert.equal(await difficultyOracle.isOutcomeSet(), false)
 
-        // TODO: TestRPC difficulty is 0, so these tests won't pass there
 
-        // // Wait until block 100
-        // await waitUntilBlock(20, targetBlock)
+        // Wait until block 100
+        await waitUntilBlock(20, targetBlock)
 
-        // await difficultyOracle.setOutcome()
+        await difficultyOracle.setOutcome()
+
+        // TODO: TestRPC difficulty is 0, so this branch in the test case is necessary for now
+        //       despite assumption that difficulty should be > 0
+        //       Need to determine whether this is a safe assumption, and if so, configure TestRPC accordingly,
+        //       but if not, change the source accordingly
+        // Tests should be:
         // assert.equal(await difficultyOracle.isOutcomeSet(), true)
         // assert.isAbove(await difficultyOracle.getOutcome(), 0)
+        assert.equal(await difficultyOracle.isOutcomeSet(), await difficultyOracle.getOutcome().valueOf() != 0)
     })
 
     // TODO: test futarchy oracle
